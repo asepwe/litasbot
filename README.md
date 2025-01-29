@@ -43,12 +43,8 @@ Before you begin, ensure you have the following:
    npm install
    ```
 
-3. Add your tokens to the `tokens.txt` file. Use the format:  
+3. Add your tokens to the `tokens.txt` file. Use the format:  `token|refreshToken`
    ```
-   token|refreshToken
-   ```
-   Example:  
-   ```bash
    nano tokens.txt
    ```
 
