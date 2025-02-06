@@ -2,6 +2,7 @@ import log from "./utils/logger.js"
 import bedduSalama from "./utils/banner.js"
 import { delay, readAccountsFromFile, readFile } from './utils/helper.js';
 import { claimMining, getNewToken, getUserFarm, activateMining } from './utils/api.js';
+import fs from 'fs/promises';
 
 async function refreshAccessToken(token, refreshToken, proxy) {
     let refresh;
@@ -10,7 +11,7 @@ async function refreshAccessToken(token, refreshToken, proxy) {
         if (!refresh) log.info('Token refresh failed, retrying...');
         await delay(3);
     } while (!refresh);
-
+    log.info('Token refreshed succesfully', refresh);
     return refresh;
 }
 
@@ -38,13 +39,12 @@ async function activateMiningProcess(token, refreshToken, proxy) {
 async function getUserFarmInfo(accessToken, refreshToken, proxy, index) {
     let userFarmInfo;
     do {
+        log.warn(`Account ${index}, refreshing token...`);
+        const refreshedTokens = await refreshAccessToken(accessToken, refreshToken, proxy);
+        accessToken = refreshedTokens.accessToken;
+        refreshToken = refreshedTokens.refreshToken;
         userFarmInfo = await getUserFarm(accessToken);
-        if (userFarmInfo === "unauth") {
-            log.warn(`Account ${index} Unauthorized, refreshing token...`);
-            const refreshedTokens = await refreshAccessToken(accessToken, refreshToken, proxy);
-            accessToken = refreshedTokens.accessToken;
-            refreshToken = refreshedTokens.refreshToken;
-        } else if (!userFarmInfo) log.warn(`Account ${index} get farm info failed, retrying...`);
+        if (!userFarmInfo) log.warn(`Account ${index} get farm info failed, retrying...`);
         await delay(3);
     } while (!userFarmInfo);
     const { status, totalMined } = userFarmInfo;
@@ -74,34 +74,49 @@ async function handleFarming(userFarmInfo, token, refreshToken, proxy) {
 }
 
 async function main() {
-    log.info(bedduSalama)
-    const accounts = await readAccountsFromFile("tokens.txt");
-    const proxies = await readFile("proxy.txt")
+    log.info(bedduSalama);
+    let accounts = await readAccountsFromFile("tokens.txt");
+    const proxies = await readFile("proxy.txt");
+
     if (accounts.length === 0) {
-        log.warn('No tokens found, exiting...')
-        process.exit(0)
+        log.warn('No tokens found, exiting...');
+        process.exit(0);
     } else {
         log.info('Running with total Accounts:', accounts.length);
     }
     if (proxies.length === 0) {
-        log.warn('No proxy found, running without proxy...')
+        log.warn('No proxy found, running without proxy...');
     }
-    for (let i = 0; i < accounts.length; i++) {
-        const proxy = proxies[i % proxies.length] || null;
-        const account = accounts[i];
-        try {
-            const { token, reToken } = account;
-            log.info(`Processing run account ${i + 1} of ${accounts.length} with: ${proxy || "No proxy"}`);
-            await activateMiningProcess(token, reToken, proxy);
-            setInterval(async () => {
+
+    while (true) {
+        for (let i = 0; i < accounts.length; i++) {
+            const proxy = proxies[i % proxies.length] || null;
+            const account = accounts[i];
+            try {
+                const { token, reToken } = account;
+                log.info(`Processing run account ${i + 1} of ${accounts.length} with: ${proxy || "No proxy"}`);
                 const { userFarmInfo, accessToken, refreshToken } = await getUserFarmInfo(token, reToken, proxy, i + 1);
+                await activateMiningProcess(accessToken, refreshToken, proxy);
                 await handleFarming(userFarmInfo, accessToken, refreshToken, proxy);
-            }, 1000 * 60); // run every minute
-        } catch (error) {
-            log.error('Error:', error.message);
+
+                account.token = accessToken;
+                account.reToken = refreshToken;
+            } catch (error) {
+                log.error('Error:', error.message);
+            }
+            await delay(3);
         }
-        await delay(3);
+
+        await writeAccountsToFile("tokens.txt", accounts);
+
+        log.info(`All accounts processed, waiting 1 hour before next run...`);
+        await delay(60 * 60);
     }
+}
+
+async function writeAccountsToFile(filename, accounts) {
+    const data = accounts.map(account => `${account.token}|${account.reToken}`).join('\n');
+    await fs.writeFile(filename, data, 'utf-8');
 }
 
 process.on('SIGINT', () => {
