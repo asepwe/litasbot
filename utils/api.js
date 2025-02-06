@@ -7,7 +7,7 @@ export async function getNewToken(token, refreshToken, proxy) {
     const agent = newAgent(proxy);
     const payload = { refreshToken };
     try {
-        const response = await axios.post(`https://www.wallet.litas.io/api/v1/auth/refresh`, payload, {
+        const response = await axios.post(`https://wallet.litas.io/api/v1/auth/refresh`, payload, {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
@@ -24,7 +24,7 @@ export async function getNewToken(token, refreshToken, proxy) {
 export async function getUserFarm(token, proxy) {
     const agent = newAgent(proxy);
     try {
-        const response = await axios.get(`https://www.wallet.litas.io/api/v1/miner/current-user`, {
+        const response = await axios.get(`https://wallet.litas.io/api/v1/miner/current-user`, {
             headers: {
                 authorization: `Bearer ${token}`
             },
@@ -44,7 +44,7 @@ export async function activateMining(token, proxy) {
     const agent = newAgent(proxy);
     try {
         const response = await axios.patch(
-            'https://www.wallet.litas.io/api/v1/miner/activate',
+            'https://wallet.litas.io/api/v1/miner/activate',
             {},
             {
                 headers: {
@@ -70,7 +70,7 @@ export async function claimMining(token, proxy) {
     const agent = newAgent(proxy);
     try {
         const response = await axios.patch(
-            'https://www.wallet.litas.io/api/v1/miner/claim',
+            'https://wallet.litas.io/api/v1/miner/claim',
             {},
             {
                 headers: {
@@ -91,4 +91,3 @@ export async function claimMining(token, proxy) {
         return null;
     }
 }
-
