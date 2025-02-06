@@ -20,10 +20,15 @@ export async function readAccountsFromFile(filePath) {
     try {
         const data = await fs.readFile(filePath, 'utf-8');
         const lines = data.trim().split('\n');
-        const accounts = lines.map(line => {
-            const [token, reToken] = line.split('|');
-            return { token, reToken };
-        });
+
+        const accounts = lines
+            .map(line => {
+                const [token, reToken] = line.split('|');
+                if (!token || !reToken) return null; 
+                return { token: token.trim(), reToken: reToken.trim() };
+            })
+            .filter(account => account !== null); 
+
         return accounts;
     } catch (error) {
         log.error('Error reading accounts file:', error.message);
